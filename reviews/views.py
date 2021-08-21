@@ -1,5 +1,5 @@
 from django.shortcuts import render
 
 def index(request):
-    name = "world"
-    return render(request, "base.html", {"name": name})
+    title = "Welcome to Bookr"
+    return render(request, "base.html", {"title": title})
