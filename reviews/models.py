@@ -38,8 +38,11 @@ class Contributor(models.Model):
                                   help_text="The contributor's last name or names.")
     email = models.EmailField(help_text="The contact email for the contributor.")
 
+    def initialled_name(self):
+        return f"{self.last_names}, {''.join([f[0] for f in self.first_names.split(' ')])}"
+
     def __str__(self):
-        return self.first_names
+        return self.initialled_name()
 
 
 class BookContributor(models.Model):
