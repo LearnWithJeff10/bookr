@@ -22,7 +22,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
     />
 
-    <title>Bookr</title>
+    <title>{% block title %}Bookr{% endblock %}</title>
 
     <link href="{% static 'main.css' %}" rel="stylesheet" />
 
@@ -60,10 +60,11 @@
             <a class="nav-link" href="#">Logout</a>
           </li>
         </ul>
-        <form class="form-inline my-2 my-lg-0">
+        <form action="{% url 'book_search' %}" class="form-inline my-2 my-lg-0">
           <input
             class="form-control mr-sm-2"
             type="search"
+            name="search"
             placeholder="Search"
             aria-label="Search"
           />
