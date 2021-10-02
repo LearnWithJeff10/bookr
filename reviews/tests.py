@@ -1,39 +1,54 @@
-from django.test import TestCase
-from django.test import Client
+import os
+
+from django.conf import settings
+from django.test import TestCase, Client
+from django.utils import timezone
+
+from reviews.models import Book, Publisher
 
 
 class Activity2Test(TestCase):
-    def test_index_page(self):
-        """Test the Bookr welcome screen"""
-        c = Client()
-        response = c.get('/')
-        self.assertIn(b'<title>Welcome to Bookr</title>', response.content)
-        self.assertIn(b'<h1>Welcome to Bookr</h1>', response.content)
+    @classmethod
+    def setUpTestData(cls):
+        p = Publisher.objects.create(name='Test Publisher')
+        Book.objects.create(title='Test Book', publication_date=timezone.now(), publisher=p)
 
-    def test_no_search(self):
-        """Test output when no query string is set."""
-        c = Client()
-        response = c.get('/book-search')
-        self.assertIn(b'<title>Search Results: </title>', response.content)
-        self.assertIn(b'<h1>Search Results for <em></em></h1>', response.content)
+    def test_book_detail_media_display(self):
+        """
+        When we first view a book we should not see a cover image or link to sample. But if we upload these, they should
+        then be displayed on the book detail page.
+        """
+        cover_filename = 'machine-learning-for-algorithmic-trading.png'
+        cover_save_path = os.path.join(settings.MEDIA_ROOT, 'book_covers', cover_filename)
 
-    def test_empty_search(self):
-        """Result for empty string search should be the same as previous test."""
-        c = Client()
-        response = c.get('/book-search?search=')
-        self.assertIn(b'<title>Search Results: </title>', response.content)
-        self.assertIn(b'<h1>Search Results for <em></em></h1>', response.content)
+        sample_filename = 'machine-learning-for-trading.pdf'
+        sample_save_path = os.path.join(settings.MEDIA_ROOT, 'book_samples', sample_filename)
 
-    def test_basic_search(self):
-        """Basic search should just pass through the value."""
-        c = Client()
-        response = c.get('/book-search?search=Test Search')
-        self.assertIn(b'<title>Search Results: Test Search</title>', response.content)
-        self.assertIn(b'<h1>Search Results for <em>Test Search</em></h1>', response.content)
+        cover_img = b'<img src="/media/book_covers/machine-learning-for-algorithmic-trading.png">'
+        sample_link = b'<a href="/media/book_samples/machine-learning-for-trading.pdf">Download</a>'
 
-    def test_html_search(self):
-        """Test that HTML entities are escaped in the output when searching for them."""
         c = Client()
-        response = c.get('/book-search?search=</html>')
-        self.assertIn(b'<title>Search Results: &lt;/html&gt;</title>', response.content)
-        self.assertIn(b'<h1>Search Results for <em>&lt;/html&gt;</em></h1>', response.content)
+        resp = c.get('/books/1/')
+
+        self.assertIn(b'<a class="btn btn-primary" href="/books/1/media/">Media</a>', resp.content)
+
+        # check the cover image and sample link aren't in the initial HTML
+        self.assertNotIn(cover_img, resp.content)
+        self.assertNotIn(sample_link, resp.content)
+
+        try:
+            with open(os.path.join(settings.BASE_DIR, 'fixtures', cover_filename), 'rb') as cover_fp:
+                with open(os.path.join(settings.BASE_DIR, 'fixtures', sample_filename), 'rb') as sample_fp:
+                    c.post('/books/1/media/', {'cover': cover_fp, 'sample': sample_fp})
+        finally:
+            if os.path.exists(cover_save_path):
+                os.unlink(cover_save_path)
+
+            if os.path.exists(sample_save_path):
+                os.unlink(sample_save_path)
+
+        resp = c.get('/books/1/')
+
+        # check the cover image and sample link are in the HTML after uploading the media
+        self.assertIn(cover_img, resp.content)
+        self.assertIn(sample_link, resp.content)

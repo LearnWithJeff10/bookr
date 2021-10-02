@@ -12,7 +12,6 @@ class Publisher(models.Model):
     def __str__(self):
         return self.name
 
-
 class Book(models.Model):
     """A published book."""
     title = models.CharField(max_length=70,
@@ -25,15 +24,10 @@ class Book(models.Model):
                                   on_delete=models.CASCADE)
     contributors = models.ManyToManyField('Contributor',
                                           through="BookContributor")
-
+    cover = models.ImageField(null=True, blank=True, upload_to="book_covers/")
+    sample = models.FileField(null=True, blank=True, upload_to="book_samples/")
     def __str__(self):
         return "{} ({})".format(self.title, self.isbn)
-
-    def isbn13(self):
-        """ '9780316769174' => '978-0-31-676917-4' """
-        return "{}-{}-{}-{}-{}".format(self.isbn[0:3], self.isbn[3:4],
-                                       self.isbn[4:6], self.isbn[6:12],
-                                       self.isbn[12:13])
 
 
 class Contributor(models.Model):
@@ -45,12 +39,13 @@ class Contributor(models.Model):
     email = models.EmailField(help_text="The contact email for the contributor.")
 
     def initialled_name(self):
-        """ self.first_names='Jerome David', self.last_names='Salinger'"""
-        return f"{self.last_names}, {''.join([f[0] for f in self.first_names.split(' ')])}"
+        """ obj.first_names='Jerome David', obj.last_names='Salinger'
+            => 'Salinger, JD' """
+        initials = ''.join([name[0] for name in self.first_names.split(' ')])
+        return "{}, {}".format(self.last_names, initials)
 
     def __str__(self):
         return self.initialled_name()
-
 
 class BookContributor(models.Model):
     class ContributionRole(models.TextChoices):
@@ -64,17 +59,19 @@ class BookContributor(models.Model):
                             choices=ContributionRole.choices, max_length=20)
 
     def __str__(self):
-        return "{} {} {}".format(self.contributor.initialled_name(), self.role, self.book.isbn)
+        return "{} ({})".format(self.contributor, self.role)
 
 class Review(models.Model):
     content = models.TextField(help_text="The Review text.")
-    rating = models.IntegerField(help_text="The rating the reviewer has given.")
+    rating = models.IntegerField(help_text="The the reviewer has given.")
     date_created = models.DateTimeField(auto_now_add=True,
                                         help_text="The date and time the review was created.")
     date_edited = models.DateTimeField(null=True,
-                                       help_text="The date and time the review was last edited.")
+                                       help_text="The date and time the review was last edited."
+                                       )
     creator = models.ForeignKey(auth.get_user_model(), on_delete=models.CASCADE)
     book = models.ForeignKey(Book, on_delete=models.CASCADE,
-                             help_text="The Book that this review is for.") 
+                             help_text="The Book that this review is for.")
+
     def __str__(self):
-        return "{} - {}".format(self.creator.username, self.book.title)
+        return "{}: {}".format(self.creator.username, self.book.title)
